@@ -1,6 +1,7 @@
 use crate::db::Db;
+use crate::utils::env_var;
 
-use eyre::Result as EResult;
+use eyre::{Result as EResult, WrapErr};
 use std::sync::Arc;
 use warp::Filter;
 
@@ -67,7 +68,11 @@ pub async fn serve(db: Db) -> EResult<()> {
     let ws = warp::path("ws").map(|| "ws upgrade");
 
     let routes = ws.or(score);
-    warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
+    let port: u16 = env_var("MEISHU_PORT")
+        .unwrap_or("3030".to_string())
+        .parse()
+        .wrap_err("failed to parse port environment variable as number")?;
+    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 
     Ok(())
 }
