@@ -67,7 +67,7 @@ pub async fn serve(db: Db) -> EResult<()> {
     let ws = warp::path("ws").map(|| "ws upgrade");
 
     let routes = ws.or(score);
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
 
     Ok(())
 }
