@@ -1,0 +1,13 @@
+[package]
+name = "meishu"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4"
+eyre = "0.6.7"
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "migrate", "chrono", "postgres"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1.32"
+tracing-subscriber = { version = "0.3.9", default-features = false, features = ["std", "fmt", "env-filter", "smallvec", "json", "ansi"] }
+warp = "0.3"
