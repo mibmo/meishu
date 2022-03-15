@@ -39,8 +39,8 @@ pub(crate) fn db_uri() -> EResult<String> {
         user = env_var("DB_USER")?,
         pass = env_var("DB_PASS")?,
         host = env_var("DB_HOST")?,
-        port = env_var("DB_PORT")?,
-        name = env_var("DB_NAME")?,
+        port = env_var("DB_PORT").unwrap_or("5432".into()),
+        name = env_var("DB_NAME").unwrap_or("meishu".into()),
     );
     debug!(?uri, "got database connection uri from environment");
     Ok(uri)
