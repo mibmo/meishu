@@ -1,0 +1,42 @@
+version: "3.8"
+
+networks:
+  internal:
+    name: internal
+    attachable: true
+
+volumes:
+  meishu-db:
+
+services:
+  meishu:
+    container_name: meishu
+    image: localhost/meishu:latest
+    restart: unless-stopped
+    networks:
+      - internal
+    depends_on:
+      - meishu-database
+    ports:
+      - 3030:3030
+    environment:
+      DB_HOST: meishu-database
+      DB_USER: meishu
+      DB_PASS: meishu
+
+  meishu-database:
+    container_name: meishu-database
+    image: docker.io/postgres:14-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - meishu-db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+    environment:
+      POSTGRES_DB: meishu
+      POSTGRES_USER: meishu
+      POSTGRES_PASSWORD: meishu
