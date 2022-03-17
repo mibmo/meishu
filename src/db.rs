@@ -70,7 +70,7 @@ impl Db {
             r#"
                 SELECT id, username, score, scored_at
                 FROM scores
-                WHERE scored_at <= $1
+                WHERE scored_at >= $1
                 ORDER BY score
             "#,
         )
