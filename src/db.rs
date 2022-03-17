@@ -1,4 +1,5 @@
 use crate::models::Score;
+use crate::utils::Timestamp;
 
 use eyre::{Result as EResult, WrapErr};
 use sqlx::postgres::*;
@@ -60,5 +61,22 @@ impl Db {
         .fetch_all(&self.pool)
         .await
         .wrap_err_with(|| format!("Failed to fetch all Scores"))
+    }
+
+    pub async fn get_scores_after_timestamp(&self, timestamp: Timestamp) -> EResult<Vec<Score>> {
+        trace!(?timestamp, "fetching Scores after timestamp");
+
+        sqlx::query_as::<_, Score>(
+            r#"
+                SELECT id, username, score, scored_at
+                FROM scores
+                WHERE scored_at <= $1
+                ORDER BY score
+            "#,
+        )
+        .bind(timestamp)
+        .fetch_all(&self.pool)
+        .await
+        .wrap_err_with(|| format!("Failed to fetch Scores after timestamp"))
     }
 }

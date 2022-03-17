@@ -1,5 +1,8 @@
+use chrono::prelude::*;
 use eyre::{Result as EResult, WrapErr};
 use tracing::*;
+
+pub type Timestamp = DateTime<Utc>;
 
 const DEFAULT_TRACING_DIRECTIVES: &'static str = "info";
 

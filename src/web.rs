@@ -1,5 +1,5 @@
 use crate::db::Db;
-use crate::utils::env_var;
+use crate::utils::{env_var, Timestamp};
 
 use eyre::{Result as EResult, WrapErr};
 use std::sync::Arc;
@@ -44,9 +44,34 @@ async fn get_all_scores_handler(db: Arc<Db>) -> Result<impl warp::Reply, std::co
     })
 }
 
+async fn get_scores_after_timestamp_handler(
+    db: Arc<Db>,
+    timestamp: Timestamp,
+) -> Result<impl warp::Reply, std::convert::Infallible> {
+    Ok(match db.get_scores_after_timestamp(timestamp).await {
+        Err(_) => format!("failed to get all scores after {timestamp}"),
+        Ok(scores) => scores
+            .into_iter()
+            .map(|score| {
+                format!(
+                    "[{scored_at}] {name:14} {value:10}\n",
+                    scored_at = score.scored_at,
+                    name = score.username,
+                    value = score.score
+                )
+            })
+            .collect::<String>(),
+    })
+}
+
 pub async fn serve(db: Db) -> EResult<()> {
     let db = Arc::new(db);
     let db_hook = warp::any().map(move || Arc::clone(&db));
+
+    let score_get_since = warp::get()
+        .and(db_hook.clone())
+        .and(warp::header::header("timestamp"))
+        .and_then(get_scores_after_timestamp_handler);
 
     let score_get_all = warp::get()
         .and(db_hook.clone())
@@ -63,11 +88,13 @@ pub async fn serve(db: Db) -> EResult<()> {
         .and(warp::path::param::<i64>())
         .and_then(delete_score_handler);
 
-    let score = warp::path("score").and(score_get_all.or(score_add.or(score_delete)));
+    let scores = warp::path("scores").and(score_get_since.or(score_get_all));
+
+    let score = warp::path("score").and(score_add.or(score_delete));
 
     let ws = warp::path("ws").map(|| "ws upgrade");
 
-    let routes = ws.or(score);
+    let routes = ws.or(scores).or(score);
     let port: u16 = env_var("MEISHU_PORT")
         .unwrap_or("3030".to_string())
         .parse()
