@@ -3,6 +3,7 @@ use crate::utils::{env_var, Timestamp};
 
 use eyre::{Result as EResult, WrapErr};
 use std::sync::Arc;
+use tracing::*;
 use warp::Filter;
 
 async fn add_score_handler(
@@ -99,6 +100,8 @@ pub async fn serve(db: Db) -> EResult<()> {
         .unwrap_or("3030".to_string())
         .parse()
         .wrap_err("failed to parse port environment variable as number")?;
+
+    info!(?port, "starting webserver");
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 
     Ok(())
