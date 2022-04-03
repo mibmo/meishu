@@ -2,18 +2,24 @@ use crate::models::Score;
 use crate::utils::Timestamp;
 
 use eyre::{Result as EResult, WrapErr};
-use sqlx::postgres::*;
+use sqlx::{postgres::*, Result as SQLResult, Row};
 use tracing::*;
 
 pub struct Db {
     pub pool: PgPool,
 }
 
+#[derive(Debug)]
+pub struct FilterOptions {
+    pub since: Option<Timestamp>,
+    pub username: Option<String>,
+}
+
 impl Db {
-    pub async fn insert_score(&self, name: &str, score: i64) -> EResult<bool> {
+    pub async fn insert_score(&self, name: &str, score: i64) -> SQLResult<i64> {
         trace!(?name, ?score, "inserting Score");
 
-        let affected = sqlx::query(
+        sqlx::query(
             r#"
                 INSERT INTO scores ( username, score )
                 VALUES ( $1, $2 )
@@ -22,12 +28,9 @@ impl Db {
         )
         .bind(name)
         .bind(score)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await
-        .wrap_err_with(|| format!("Failed to create Score with name \"{name}\" and score {score}"))?
-        .rows_affected();
-
-        Ok(affected == 1)
+        .map(|row| row.get(0))
     }
 
     pub async fn delete_score(&self, id: i64) -> EResult<bool> {
@@ -48,35 +51,43 @@ impl Db {
         Ok(affected == 1)
     }
 
-    pub async fn get_all_scores(&self) -> EResult<Vec<Score>> {
-        trace!("fetching all Scores");
+    pub async fn get_scores(&self, options: FilterOptions) -> SQLResult<Vec<Score>> {
+        trace!(?options, "fetching Scores");
 
-        sqlx::query_as::<_, Score>(
+        let mut query = String::from(
             r#"
                 SELECT id, username, score, scored_at
                 FROM scores
-                ORDER BY score
-            "#,
-        )
-        .fetch_all(&self.pool)
-        .await
-        .wrap_err_with(|| format!("Failed to fetch all Scores"))
+                WHERE 1=1
+        "#,
+        );
+        if options.since.is_some() {
+            query.push_str("AND scored_at >= $1");
+        }
+        if options.username.is_some() {
+            query.push_str("AND username = $2");
+        }
+        query.push_str("ORDER BY id");
+
+        sqlx::query_as::<_, Score>(&query)
+            .bind(options.since)
+            .bind(options.username)
+            .fetch_all(&self.pool)
+            .await
     }
 
-    pub async fn get_scores_after_timestamp(&self, timestamp: Timestamp) -> EResult<Vec<Score>> {
-        trace!(?timestamp, "fetching Scores after timestamp");
+    pub async fn get_score_by_id(&self, id: i64) -> SQLResult<Score> {
+        trace!(?id, "getting score");
 
         sqlx::query_as::<_, Score>(
             r#"
-                SELECT id, username, score, scored_at
+                SELECT *
                 FROM scores
-                WHERE scored_at >= $1
-                ORDER BY score
+                WHERE id = $1
             "#,
         )
-        .bind(timestamp)
-        .fetch_all(&self.pool)
+        .bind(id)
+        .fetch_one(&self.pool)
         .await
-        .wrap_err_with(|| format!("Failed to fetch Scores after timestamp"))
     }
 }

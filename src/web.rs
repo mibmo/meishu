@@ -1,104 +1,110 @@
-use crate::db::Db;
-use crate::utils::{env_var, Timestamp};
+use crate::db::{Db, FilterOptions};
+use crate::utils::env_var;
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use eyre::{Result as EResult, WrapErr};
+use serde::Deserialize;
+use sqlx::Error as SQLError;
 use std::sync::Arc;
-use warp::Filter;
+use tracing::*;
+use warp::{
+    http::StatusCode,
+    reply::{json, Reply, Response},
+    Filter,
+};
 
-async fn add_score_handler(
-    db: Arc<Db>,
-    name: String,
+#[derive(Deserialize)]
+struct CreateScoreRequest {
+    username: String,
     score: i64,
-) -> Result<impl warp::Reply, std::convert::Infallible> {
-    match db.insert_score(&name, score).await {
-        Ok(true) => Ok("created score"),
-        Ok(false) | Err(_) => Ok("failed to create score"),
+}
+
+#[derive(Deserialize)]
+struct GetScoresRequest {
+    since: Option<i64>,
+    username: Option<String>,
+}
+
+async fn get_score_handler(db: Arc<Db>, id: i64) -> Response {
+    match db.get_score_by_id(id).await {
+        Ok(score) => reply_status(json(&score), StatusCode::OK),
+        Err(SQLError::RowNotFound) => reply_status("Score doesn't exist", StatusCode::NOT_FOUND),
+        Err(_) => reply_status(
+            "Could not process request",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
     }
 }
 
-async fn delete_score_handler(
-    db: Arc<Db>,
-    id: i64,
-) -> Result<impl warp::Reply, std::convert::Infallible> {
+async fn create_score_handler(db: Arc<Db>, score: CreateScoreRequest) -> Response {
+    match db.insert_score(&score.username, score.score).await {
+        Ok(id) => reply_status(id.to_string(), StatusCode::CREATED),
+        Err(_) => reply_status("Could not create score", StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn delete_score_handler(db: Arc<Db>, id: i64) -> Response {
     match db.delete_score(id).await {
-        Ok(true) => Ok("deleted score"),
-        Ok(false) => Ok("score does not exist"),
-        Err(_) => Ok("failed to delete score"),
+        Ok(true) => reply_status("Deleted score", StatusCode::OK),
+        Ok(false) => reply_status("Score not found", StatusCode::NOT_FOUND),
+        Err(_) => reply_status("Did not delete score", StatusCode::NOT_MODIFIED),
     }
 }
 
-async fn get_all_scores_handler(db: Arc<Db>) -> Result<impl warp::Reply, std::convert::Infallible> {
-    Ok(match db.get_all_scores().await {
-        Err(_) => "failed to get all scores".to_string(),
-        Ok(scores) => scores
-            .into_iter()
-            .map(|score| {
-                format!(
-                    "[{scored_at}] {name:14} {value:10}\n",
-                    scored_at = score.scored_at,
-                    name = score.username,
-                    value = score.score
-                )
-            })
-            .collect::<String>(),
-    })
+async fn get_scores_handler(db: Arc<Db>, options: GetScoresRequest) -> Response {
+    let options = FilterOptions {
+        username: options.username,
+        since: options.since.map(|timestamp| {
+            let naive = NaiveDateTime::from_timestamp(timestamp, 0);
+            DateTime::<Utc>::from_utc(naive, Utc)
+        }),
+    };
+
+    match db.get_scores(options).await {
+        Ok(scores) => reply_status(json(&scores), StatusCode::OK),
+        Err(_) => reply_status("Failed to get scores", StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
-async fn get_scores_after_timestamp_handler(
-    db: Arc<Db>,
-    timestamp: Timestamp,
-) -> Result<impl warp::Reply, std::convert::Infallible> {
-    Ok(match db.get_scores_after_timestamp(timestamp).await {
-        Err(_) => format!("failed to get all scores after {timestamp}"),
-        Ok(scores) => scores
-            .into_iter()
-            .map(|score| {
-                format!(
-                    "[{scored_at}] {name:14} {value:10}\n",
-                    scored_at = score.scored_at,
-                    name = score.username,
-                    value = score.score
-                )
-            })
-            .collect::<String>(),
-    })
+fn reply_status(reply: impl warp::Reply, status: StatusCode) -> Response {
+    Box::new(warp::reply::with_status(reply, status)).into_response()
 }
 
 pub async fn serve(db: Db) -> EResult<()> {
     let db = Arc::new(db);
     let db_hook = warp::any().map(move || Arc::clone(&db));
 
-    let score_get_since = warp::get()
-        .and(db_hook.clone())
-        .and(warp::header::header("timestamp"))
-        .and_then(get_scores_after_timestamp_handler);
-
-    let score_get_all = warp::get()
-        .and(db_hook.clone())
-        .and_then(get_all_scores_handler);
-
-    let score_add = warp::post()
-        .and(db_hook.clone())
-        .and(warp::path::param::<String>())
-        .and(warp::path::param::<i64>())
-        .and_then(add_score_handler);
-
-    let score_delete = warp::delete()
+    let get_score = warp::get()
         .and(db_hook.clone())
         .and(warp::path::param::<i64>())
-        .and_then(delete_score_handler);
+        .then(get_score_handler);
 
-    let scores = warp::path("scores").and(score_get_since.or(score_get_all));
+    let create_score = warp::post()
+        .and(db_hook.clone())
+        .and(warp::body::json::<CreateScoreRequest>())
+        .then(create_score_handler);
 
-    let score = warp::path("score").and(score_add.or(score_delete));
+    let delete_score = warp::delete()
+        .and(db_hook.clone())
+        .and(warp::path::param::<i64>())
+        .then(delete_score_handler);
 
-    let ws = warp::path("ws").map(|| "ws upgrade");
+    let score = warp::path("score").and(get_score.or(create_score).or(delete_score));
 
-    let routes = ws.or(scores).or(score);
+    let get_scores = warp::get()
+        .and(db_hook.clone())
+        .and(warp::query::<GetScoresRequest>())
+        .then(get_scores_handler);
+
+    let scores = warp::path("scores").and(get_scores);
+
+    let routes = scores.or(score);
     let port: u16 = env_var("MEISHU_PORT")
         .unwrap_or("3030".to_string())
         .parse()
         .wrap_err("failed to parse port environment variable as number")?;
+
+    info!(?port, "starting webserver");
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 
     Ok(())

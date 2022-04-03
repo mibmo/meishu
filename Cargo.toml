@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 eyre = "0.6.7"
+serde = { version = "1", default-features = false, features = ["derive"] } 
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "migrate", "chrono", "postgres"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.32"
