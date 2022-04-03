@@ -35,7 +35,7 @@ services:
     ports:
       - 5432:5432
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: ["CMD", "pg_isready", "-U", "meishu"]
     environment:
       POSTGRES_DB: meishu
       POSTGRES_USER: meishu
