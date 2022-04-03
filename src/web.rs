@@ -18,6 +18,12 @@ use warp::{
 #[template(path = "leaderboard.html")]
 struct LeaderboardTemplate;
 
+#[derive(Template)]
+#[template(path = "score.html")]
+struct SpecificScoreTemplate {
+    score_id: i64,
+}
+
 #[derive(Deserialize)]
 struct CreateScoreRequest {
     username: String,
@@ -119,10 +125,18 @@ pub async fn serve(db: Db) -> EResult<()> {
         .map(|| LeaderboardTemplate)
         .then(render_template);
 
+    let specific_score = warp::path("score")
+        .and(warp::get())
+        .and(warp::path::param::<i64>())
+        .map(|score_id| SpecificScoreTemplate {
+            score_id,
+        })
+        .then(render_template);
+
     let resources = warp::path("assets").and(warp::fs::dir("resources"));
 
     let api = warp::path("api").and(scores.or(score));
-    let web = leaderboard;
+    let web = leaderboard.or(specific_score);
     let routes = resources.or(web.or(api));
     let port: u16 = env_var("MEISHU_PORT")
         .unwrap_or("3030".to_string())
