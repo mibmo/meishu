@@ -26,7 +26,6 @@ pub(crate) fn setup_tracing_subscriber() -> EResult<()> {
     let filter = EnvFilter::new(directives);
     let subscriber = tracing_subscriber::fmt()
         //.json()
-        .with_thread_names(true)
         .with_env_filter(filter)
         .finish();
 
