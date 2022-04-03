@@ -1,0 +1,95 @@
+openapi: 3.1.0
+info:
+  version: 1.0.0
+  title: Leaderboard
+  description: Leaderboard service for My Mini Reactor
+components:
+  schemas:
+    Score:
+      id: number
+      score: number
+      username: string
+      scoredAt: timestamp
+paths:
+  '/score':
+    get:
+      operationId: get_score
+      summary: Get a specific score by it's ID
+      description: ''
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'Found score'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Score'
+        '404':
+          description: 'Score not found'
+    post:
+      operationId: create_score
+      summary: Create a score entry
+      description: ''
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              username: string
+              score: integer
+      responses:
+        '201':
+          description: 'Score ID'
+          content:
+            text/plain:
+              schema:
+                type: integer
+    delete:
+      operationId: delete_score
+      summary: Delete a score entry
+      description: ''
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'Score deleted'
+        '404':
+          description: 'Score not found'
+        '304':
+          description: 'Score not deleted'
+  '/scores':
+    get:
+      operationId: get_scores
+      summary: Get scores
+      description: 'Get all scores matching parameters'
+      parameters:
+        - name: 'since'
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: 'Only scores since unix timestamp'
+        - name: 'username'
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 'Filter scores by user'
+      responses:
+        '200':
+          description: 'Scores'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Score'
