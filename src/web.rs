@@ -1,4 +1,5 @@
 use crate::db::{Db, FilterOptions};
+use crate::models::Score;
 use crate::utils::env_var;
 
 use askama::Template;
@@ -16,7 +17,9 @@ use warp::{
 
 #[derive(Template)]
 #[template(path = "leaderboard.html")]
-struct LeaderboardTemplate;
+struct LeaderboardTemplate {
+    scores: Vec<Score>,
+}
 
 #[derive(Template)]
 #[template(path = "score.html")]
@@ -122,7 +125,11 @@ pub async fn serve(db: Db) -> EResult<()> {
 
     let leaderboard = warp::get()
         .and(warp::path::end())
-        .map(|| LeaderboardTemplate)
+        .and(db_hook.clone())
+        .then(|db: Arc<Db>| db.get_scores(FilterOptions::default()))
+        .map(|scores: Result<_, _>| LeaderboardTemplate {
+            scores: scores.unwrap_or(Vec::new()),
+        })
         .then(render_template);
 
     let specific_score = warp::path("score")

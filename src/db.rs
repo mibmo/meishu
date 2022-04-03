@@ -9,7 +9,7 @@ pub struct Db {
     pub pool: PgPool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct FilterOptions {
     pub since: Option<Timestamp>,
     pub username: Option<String>,

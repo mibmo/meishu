@@ -3,4 +3,27 @@
 {% block title %}Leaderboard{% endblock %}
 {% block content %}
 Leaderboard
+<div class="flex flex-col m-10 space-y-4">
+    {% for score in scores %}
+    <div class="p-4 bg-white shadow-xl ring-1 rounded-2xl ring-gray-500/50">
+        <div class="flex flex-row w-full">
+            <div class="w-8 font-bold">
+                #<!-- rank-->
+            </div>
+
+            <div class="w-1/4 font-bold">
+            {{ score.username }}
+            </div>
+
+            <div class="mr-4">
+            {{ score.score }}
+            </div>
+
+            <div class="ml-auto font-semibold">
+            {{ score.scored_at }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}
