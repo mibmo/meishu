@@ -119,9 +119,11 @@ pub async fn serve(db: Db) -> EResult<()> {
         .map(|| LeaderboardTemplate)
         .then(render_template);
 
+    let resources = warp::path("assets").and(warp::fs::dir("resources"));
+
     let api = warp::path("api").and(scores.or(score));
     let web = leaderboard;
-    let routes = web.or(api);
+    let routes = resources.or(web.or(api));
     let port: u16 = env_var("MEISHU_PORT")
         .unwrap_or("3030".to_string())
         .parse()
