@@ -1,6 +1,7 @@
 use crate::db::{Db, FilterOptions};
 use crate::utils::env_var;
 
+use askama::Template;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use eyre::{Result as EResult, WrapErr};
 use serde::Deserialize;
@@ -9,7 +10,7 @@ use std::sync::Arc;
 use tracing::*;
 use warp::{
     http::StatusCode,
-    reply::{json, Reply, Response},
+    reply::{json, Reply, Response, html},
     Filter,
 };
 
@@ -63,6 +64,17 @@ async fn get_scores_handler(db: Arc<Db>, options: GetScoresRequest) -> Response 
     match db.get_scores(options).await {
         Ok(scores) => reply_status(json(&scores), StatusCode::OK),
         Err(_) => reply_status("Failed to get scores", StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn render_template<T: Template>(template: T) -> Response {
+    match template.render() {
+        Ok(render) => reply_status(html(render), StatusCode::OK),
+        Err(_) => {
+            let template_name = std::any::type_name::<T>();
+            error!(?template_name, "Failed to render template");
+            reply_status("Could not render template", StatusCode::INTERNAL_SERVER_ERROR)
+        },
     }
 }
 
