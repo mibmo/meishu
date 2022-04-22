@@ -126,10 +126,13 @@ pub async fn serve(db: Db) -> EResult<()> {
     let leaderboard = warp::get()
         .and(warp::path::end())
         .and(db_hook.clone())
-        .then(|db: Arc<Db>| db.get_scores(FilterOptions::default()))
-        .map(|scores: Result<_, _>| LeaderboardTemplate {
-            scores: scores.unwrap_or(Vec::new()),
+        .then(|db: Arc<Db>| async move {
+            match db.get_scores(FilterOptions::default()).await {
+                Ok(scores) => scores,
+                Err(_) => Vec::new(),
+            }
         })
+        .map(|scores: Vec<Score>| LeaderboardTemplate { scores })
         .then(render_template);
 
     let specific_score = warp::path("score")
