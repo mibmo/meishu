@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tracing::*;
 use warp::{
     http::StatusCode,
-    reply::{json, Reply, Response, html},
+    reply::{html, json, Reply, Response},
     Filter,
 };
 
@@ -98,8 +98,11 @@ async fn render_template<T: Template>(template: T) -> Response {
         Err(_) => {
             let template_name = std::any::type_name::<T>();
             error!(?template_name, "Failed to render template");
-            reply_status("Could not render template", StatusCode::INTERNAL_SERVER_ERROR)
-        },
+            reply_status(
+                "Could not render template",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+        }
     }
 }
 
