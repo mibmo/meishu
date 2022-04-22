@@ -10,10 +10,11 @@ pub struct Db {
 }
 
 #[derive(Debug, Default)]
-pub struct FilterOptions {
+pub struct GetScoresOptions {
     pub since: Option<Timestamp>,
     pub username: Option<String>,
     pub pending: Option<bool>,
+    pub order_by: Option<String>,
 }
 
 impl Db {
@@ -87,7 +88,7 @@ impl Db {
         Ok(affected == 1)
     }
 
-    pub async fn get_scores(&self, options: FilterOptions) -> SQLResult<Vec<Score>> {
+    pub async fn get_scores(&self, options: GetScoresOptions) -> SQLResult<Vec<Score>> {
         debug!(?options, "fetching Scores");
 
         let mut query = String::from(
@@ -106,7 +107,10 @@ impl Db {
         if options.pending.is_some() {
             query.push_str("AND pending = $3");
         }
-        query.push_str("ORDER BY id");
+        query.push_str(&format!(
+            "ORDER BY {}\n",
+            options.order_by.unwrap_or("id".to_string())
+        ));
 
         sqlx::query_as::<_, Score>(&query)
             .bind(options.since)

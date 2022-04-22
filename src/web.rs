@@ -1,4 +1,4 @@
-use crate::db::{Db, FilterOptions};
+use crate::db::{Db, GetScoresOptions};
 use crate::models::Score;
 use crate::utils::env_var;
 
@@ -94,13 +94,14 @@ async fn finalize_score_handler(
 }
 
 async fn get_scores_handler(db: Arc<Db>, options: GetScoresRequest) -> Response {
-    let options = FilterOptions {
+    let options = GetScoresOptions {
         username: options.username,
         since: options.since.map(|timestamp| {
             let naive = NaiveDateTime::from_timestamp(timestamp, 0);
             DateTime::<Utc>::from_utc(naive, Utc)
         }),
         pending: options.pending,
+        order_by: Some("score".to_string()),
     };
 
     match db.get_scores(options).await {
@@ -165,7 +166,7 @@ pub async fn serve(db: Db) -> EResult<()> {
         .and(warp::path::end())
         .and(db_hook.clone())
         .then(|db: Arc<Db>| async move {
-            let options = FilterOptions {
+            let options = GetScoresOptions {
                 pending: Some(false),
                 ..Default::default()
             };
