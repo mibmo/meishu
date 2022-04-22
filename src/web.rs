@@ -24,7 +24,7 @@ struct LeaderboardTemplate {
 #[derive(Template)]
 #[template(path = "score.html")]
 struct SpecificScoreTemplate {
-    score_id: i64,
+    score: Score,
 }
 
 #[derive(Deserialize)]
@@ -137,10 +137,12 @@ pub async fn serve(db: Db) -> EResult<()> {
 
     let specific_score = warp::path("score")
         .and(warp::get())
+        .and(db_hook.clone())
         .and(warp::path::param::<i64>())
-        .map(|score_id| SpecificScoreTemplate {
-            score_id,
+        .and_then(|db: Arc<Db>, id: i64| async move {
+            db.get_score_by_id(id).await.map_err(|_| warp::reject())
         })
+        .map(|score| SpecificScoreTemplate { score })
         .then(render_template);
 
     let resources = warp::path("assets").and(warp::fs::dir("resources"));
