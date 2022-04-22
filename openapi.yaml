@@ -66,6 +66,29 @@ paths:
           description: 'Score not found'
         '304':
           description: 'Score not deleted'
+    patch:
+      operationId: finalize_score
+      summary: Finalize a score
+      description: ''
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: 'username'
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 'Name to finalize score as'
+      responses:
+        '200':
+          description: 'Score finalized'
+        '404':
+          description: 'Score not found'
+        '304':
+          description: 'Score not finalized'
   '/scores':
     get:
       operationId: get_scores

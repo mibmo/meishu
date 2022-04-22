@@ -50,6 +50,25 @@ impl Db {
         .map(|row| row.get(0))
     }
 
+    pub async fn finalize_score(&self, id: i64, name: &str) -> SQLResult<bool> {
+        trace!(?id, ?name, "finalizing score");
+
+        let affected = sqlx::query(
+            r#"
+                UPDATE scores
+                SET pending = false, username = $2
+                WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .bind(name)
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+
+        Ok(affected == 1)
+    }
+
     pub async fn delete_score(&self, id: i64) -> EResult<bool> {
         trace!(?id, "deleting Score");
 
