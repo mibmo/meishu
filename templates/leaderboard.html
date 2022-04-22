@@ -12,7 +12,7 @@ Leaderboard
             </div>
 
             <div class="w-1/4 font-bold">
-            {{ score.username }}
+            {{ score.username.as_ref().unwrap() }}
             </div>
 
             <div class="mr-4">

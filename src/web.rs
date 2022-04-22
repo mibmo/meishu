@@ -29,7 +29,7 @@ struct SpecificScoreTemplate {
 
 #[derive(Deserialize)]
 struct CreateScoreRequest {
-    username: String,
+    username: Option<String>,
     score: i64,
 }
 
@@ -37,6 +37,7 @@ struct CreateScoreRequest {
 struct GetScoresRequest {
     since: Option<i64>,
     username: Option<String>,
+    pending: Option<bool>,
 }
 
 async fn get_score_handler(db: Arc<Db>, id: i64) -> Response {
@@ -51,9 +52,19 @@ async fn get_score_handler(db: Arc<Db>, id: i64) -> Response {
 }
 
 async fn create_score_handler(db: Arc<Db>, score: CreateScoreRequest) -> Response {
-    match db.insert_score(&score.username, score.score).await {
-        Ok(id) => reply_status(id.to_string(), StatusCode::CREATED),
-        Err(_) => reply_status("Could not create score", StatusCode::INTERNAL_SERVER_ERROR),
+    if let Some(username) = score.username {
+        match db.insert_score(&username, score.score).await {
+            Ok(id) => reply_status(id.to_string(), StatusCode::CREATED),
+            Err(_) => reply_status("Could not create score", StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    } else {
+        match db.insert_pending_score(score.score).await {
+            Ok(id) => reply_status(id.to_string(), StatusCode::CREATED),
+            Err(_) => reply_status(
+                "Could not create pending score",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+        }
     }
 }
 
@@ -72,6 +83,7 @@ async fn get_scores_handler(db: Arc<Db>, options: GetScoresRequest) -> Response 
             let naive = NaiveDateTime::from_timestamp(timestamp, 0);
             DateTime::<Utc>::from_utc(naive, Utc)
         }),
+        pending: options.pending,
     };
 
     match db.get_scores(options).await {

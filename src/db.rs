@@ -13,6 +13,7 @@ pub struct Db {
 pub struct FilterOptions {
     pub since: Option<Timestamp>,
     pub username: Option<String>,
+    pub pending: Option<bool>,
 }
 
 impl Db {
@@ -27,6 +28,22 @@ impl Db {
             "#,
         )
         .bind(name)
+        .bind(score)
+        .fetch_one(&self.pool)
+        .await
+        .map(|row| row.get(0))
+    }
+
+    pub async fn insert_pending_score(&self, score: i64) -> SQLResult<i64> {
+        trace!(?score, "inserting pending Score");
+
+        sqlx::query(
+            r#"
+                INSERT INTO scores ( score, pending )
+                VALUES ( $1, true )
+                RETURNING id
+            "#,
+        )
         .bind(score)
         .fetch_one(&self.pool)
         .await
@@ -52,11 +69,11 @@ impl Db {
     }
 
     pub async fn get_scores(&self, options: FilterOptions) -> SQLResult<Vec<Score>> {
-        trace!(?options, "fetching Scores");
+        debug!(?options, "fetching Scores");
 
         let mut query = String::from(
             r#"
-                SELECT id, username, score, scored_at
+                SELECT id, username, score, scored_at, pending
                 FROM scores
                 WHERE 1=1
         "#,
@@ -67,11 +84,15 @@ impl Db {
         if options.username.is_some() {
             query.push_str("AND username = $2");
         }
+        if options.pending.is_some() {
+            query.push_str("AND pending = $3");
+        }
         query.push_str("ORDER BY id");
 
         sqlx::query_as::<_, Score>(&query)
             .bind(options.since)
             .bind(options.username)
+            .bind(options.pending)
             .fetch_all(&self.pool)
             .await
     }
