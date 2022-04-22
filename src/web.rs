@@ -142,7 +142,11 @@ pub async fn serve(db: Db) -> EResult<()> {
         .and(warp::path::end())
         .and(db_hook.clone())
         .then(|db: Arc<Db>| async move {
-            match db.get_scores(FilterOptions::default()).await {
+            let options = FilterOptions {
+                pending: Some(false),
+                ..Default::default()
+            };
+            match db.get_scores(options).await {
                 Ok(scores) => scores,
                 Err(_) => Vec::new(),
             }
