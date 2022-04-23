@@ -2,5 +2,28 @@
 
 {% block title %}Score - Leaderboard{% endblock %}
 {% block content %}
-Score
+{% if !score.pending %}
+    <div class="flex flex-col w-screen h-screen place-items-center">
+      <div class="p-4 bg-white md:m-4 md:shadow-xl h-min w-min md:ring-1 md:rounded-2xl ring-gray-500/50 center">
+          <div class="flex flex-row whitespace-nowrap">
+              <div class="mr-4 font-bold text-right">
+                  <code>
+                      Username:<br>
+                      Score:<br>
+                      Scored at:<br>
+                  </code>
+              </div>
+              <div>
+                  <p>
+                      {{ score.username.as_ref().unwrap() }}<br>
+                      {{ score.score }}<br>
+                      {{ score.scored_at.format("%Y %B %d, %k:%M:%S") }}<br>
+                  </p>
+              </div>
+          </div>
+      </div>
+    </div>
+{% else %}
+    Pending score {{ score.id }}
+{% endif %}
 {% endblock %}

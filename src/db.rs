@@ -134,4 +134,20 @@ impl Db {
         .fetch_one(&self.pool)
         .await
     }
+
+    pub async fn get_latest_pending_score(&self) -> SQLResult<Score> {
+        debug!("getting latest pending score");
+
+        sqlx::query_as::<_, Score>(
+            r#"
+                SELECT *
+                FROM scores
+                WHERE pending = true
+                ORDER BY scored_at
+                LIMIT 1
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await
+    }
 }

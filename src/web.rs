@@ -189,10 +189,21 @@ pub async fn serve(db: Db) -> EResult<()> {
         .map(|score| SpecificScoreTemplate { score })
         .then(render_template);
 
+    let finalize_latest_score = warp::path("pending")
+        .and(warp::get())
+        .and(db_hook.clone())
+        .and_then(|db: Arc<Db>| async move {
+            db.get_latest_pending_score()
+                .await
+                .map_err(|_| warp::reject())
+        })
+        .map(|score| SpecificScoreTemplate { score })
+        .then(render_template);
+
     let resources = warp::path("assets").and(warp::fs::dir("resources"));
 
     let api = warp::path("api").and(scores.or(score));
-    let web = leaderboard.or(specific_score);
+    let web = leaderboard.or(specific_score).or(finalize_latest_score);
     let routes = resources.or(web.or(api));
     let port: u16 = env_var("MEISHU_PORT")
         .unwrap_or("3030".to_string())
