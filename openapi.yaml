@@ -66,6 +66,29 @@ paths:
           description: 'Score not found'
         '304':
           description: 'Score not deleted'
+    patch:
+      operationId: finalize_score
+      summary: Finalize a score
+      description: ''
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: 'username'
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 'Name to finalize score as'
+      responses:
+        '200':
+          description: 'Score finalized'
+        '404':
+          description: 'Score not found'
+        '304':
+          description: 'Score not finalized'
   '/scores':
     get:
       operationId: get_scores
@@ -84,6 +107,12 @@ paths:
           schema:
             type: string
           description: 'Filter scores by user'
+        - name: 'pending'
+          in: query
+          required: false
+          schema:
+            type: bool
+          description: 'Filter scores by pending and finalized scores'
       responses:
         '200':
           description: 'Scores'

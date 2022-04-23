@@ -9,10 +9,12 @@ pub struct Db {
     pub pool: PgPool,
 }
 
-#[derive(Debug)]
-pub struct FilterOptions {
+#[derive(Debug, Default)]
+pub struct GetScoresOptions {
     pub since: Option<Timestamp>,
     pub username: Option<String>,
+    pub pending: Option<bool>,
+    pub order_by: Option<String>,
 }
 
 impl Db {
@@ -33,6 +35,41 @@ impl Db {
         .map(|row| row.get(0))
     }
 
+    pub async fn insert_pending_score(&self, score: i64) -> SQLResult<i64> {
+        trace!(?score, "inserting pending Score");
+
+        sqlx::query(
+            r#"
+                INSERT INTO scores ( score, pending )
+                VALUES ( $1, true )
+                RETURNING id
+            "#,
+        )
+        .bind(score)
+        .fetch_one(&self.pool)
+        .await
+        .map(|row| row.get(0))
+    }
+
+    pub async fn finalize_score(&self, id: i64, name: &str) -> SQLResult<bool> {
+        trace!(?id, ?name, "finalizing score");
+
+        let affected = sqlx::query(
+            r#"
+                UPDATE scores
+                SET pending = false, username = $2
+                WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .bind(name)
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+
+        Ok(affected == 1)
+    }
+
     pub async fn delete_score(&self, id: i64) -> EResult<bool> {
         trace!(?id, "deleting Score");
 
@@ -51,12 +88,12 @@ impl Db {
         Ok(affected == 1)
     }
 
-    pub async fn get_scores(&self, options: FilterOptions) -> SQLResult<Vec<Score>> {
-        trace!(?options, "fetching Scores");
+    pub async fn get_scores(&self, options: GetScoresOptions) -> SQLResult<Vec<Score>> {
+        debug!(?options, "fetching Scores");
 
         let mut query = String::from(
             r#"
-                SELECT id, username, score, scored_at
+                SELECT id, username, score, scored_at, pending
                 FROM scores
                 WHERE 1=1
         "#,
@@ -67,11 +104,18 @@ impl Db {
         if options.username.is_some() {
             query.push_str("AND username = $2");
         }
-        query.push_str("ORDER BY id");
+        if options.pending.is_some() {
+            query.push_str("AND pending = $3");
+        }
+        query.push_str(&format!(
+            "ORDER BY {}\n",
+            options.order_by.unwrap_or("id".to_string())
+        ));
 
         sqlx::query_as::<_, Score>(&query)
             .bind(options.since)
             .bind(options.username)
+            .bind(options.pending)
             .fetch_all(&self.pool)
             .await
     }
@@ -87,6 +131,22 @@ impl Db {
             "#,
         )
         .bind(id)
+        .fetch_one(&self.pool)
+        .await
+    }
+
+    pub async fn get_latest_pending_score(&self) -> SQLResult<Score> {
+        debug!("getting latest pending score");
+
+        sqlx::query_as::<_, Score>(
+            r#"
+                SELECT *
+                FROM scores
+                WHERE pending = true
+                ORDER BY scored_at
+                LIMIT 1
+            "#,
+        )
         .fetch_one(&self.pool)
         .await
     }
