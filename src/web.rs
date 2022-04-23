@@ -34,11 +34,6 @@ struct CreateScoreRequest {
 }
 
 #[derive(Deserialize)]
-struct FinalizeScoreRequest {
-    username: String,
-}
-
-#[derive(Deserialize)]
 struct GetScoresRequest {
     since: Option<i64>,
     username: Option<String>,
@@ -84,7 +79,7 @@ async fn delete_score_handler(db: Arc<Db>, id: i64) -> Response {
 async fn finalize_score_handler(
     db: Arc<Db>,
     id: i64,
-    FinalizeScoreRequest { username }: FinalizeScoreRequest,
+    username: String,
 ) -> Response {
     match db.finalize_score(id, &username).await {
         Ok(true) => reply_status("Score finalized", StatusCode::OK),
@@ -150,7 +145,7 @@ pub async fn serve(db: Db) -> EResult<()> {
     let finalize_score = warp::patch()
         .and(db_hook.clone())
         .and(warp::path::param::<i64>())
-        .and(warp::query::<FinalizeScoreRequest>())
+        .and(warp::header::<String>("username"))
         .then(finalize_score_handler);
 
     let score = warp::path("score").and(get_score.or(create_score).or(delete_score).or(finalize_score));

@@ -24,6 +24,37 @@
       </div>
     </div>
 {% else %}
-    Pending score {{ score.id }}
+    <div class="flex flex-col w-screen h-screen place-items-center">
+        <p class="m-4 fonttext-center">
+            A score with <b>{{ score.score }}</b> points was achieved at <b>{{ score.scored_at.format("%k:%M:%S") }}</b> on <b>{{ score.scored_at.format("%Y %B %d") }}</b>.<br>
+            Type your name below to claim your score!
+        </p>
+        <input id="input-username" type="text" placeholder="Name!" required autofocus class="p-4 m-4 bg-white shadow-xl h-min w-min ring-1 rounded-2xl ring-gray-500/50 center">
+        <button onclick="submitScore()">
+            Claim score
+        </button>
+    </div>
+
+    <script>
+        let nameEl = document.getElementById('input-username');
+
+        async function submitScore() {
+            let name = nameEl.value;
+
+            let response = await fetch("/api/score/{{ score.id }}", {
+                method: "PATCH",
+                headers: {
+                    "username": name,
+                }
+            });
+
+            if (response.ok) {
+                window.location = "/";
+            } else {
+                // should show an error, but instead just reload the page skipping cache.
+                window.location.reload(true);
+            }
+        }
+    </script>
 {% endif %}
 {% endblock %}

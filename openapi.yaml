@@ -77,7 +77,7 @@ paths:
           schema:
             type: integer
         - name: 'username'
-          in: query
+          in: header
           required: true
           schema:
             type: string
