@@ -168,6 +168,7 @@ pub async fn serve(db: Db) -> EResult<()> {
         .then(|db: Arc<Db>| async move {
             let options = GetScoresOptions {
                 pending: Some(false),
+                order_by: Some("score desc".to_string()),
                 ..Default::default()
             };
             match db.get_scores(options).await {
