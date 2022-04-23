@@ -76,11 +76,7 @@ async fn delete_score_handler(db: Arc<Db>, id: i64) -> Response {
     }
 }
 
-async fn finalize_score_handler(
-    db: Arc<Db>,
-    id: i64,
-    username: String,
-) -> Response {
+async fn finalize_score_handler(db: Arc<Db>, id: i64, username: String) -> Response {
     match db.finalize_score(id, &username).await {
         Ok(true) => reply_status("Score finalized", StatusCode::OK),
         Ok(false) => reply_status("Score not found", StatusCode::NOT_FOUND),
@@ -127,6 +123,8 @@ pub async fn serve(db: Db) -> EResult<()> {
     let db = Arc::new(db);
     let db_hook = warp::any().map(move || Arc::clone(&db));
 
+    let cors = warp::cors().allow_methods(vec!["GET", "POST", "DELETE", "UPDATE", "PATCH"]);
+
     let get_score = warp::get()
         .and(db_hook.clone())
         .and(warp::path::param::<i64>())
@@ -148,7 +146,12 @@ pub async fn serve(db: Db) -> EResult<()> {
         .and(warp::header::<String>("username"))
         .then(finalize_score_handler);
 
-    let score = warp::path("score").and(get_score.or(create_score).or(delete_score).or(finalize_score));
+    let score = warp::path("score").and(
+        get_score
+            .or(create_score)
+            .or(delete_score)
+            .or(finalize_score),
+    );
 
     let get_scores = warp::get()
         .and(db_hook.clone())
@@ -199,7 +202,7 @@ pub async fn serve(db: Db) -> EResult<()> {
 
     let api = warp::path("api").and(scores.or(score));
     let web = leaderboard.or(specific_score).or(finalize_latest_score);
-    let routes = resources.or(web.or(api));
+    let routes = resources.or(web.or(api)).with(cors);
     let port: u16 = env_var("MEISHU_PORT")
         .unwrap_or("3030".to_string())
         .parse()
