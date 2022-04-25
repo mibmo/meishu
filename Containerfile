@@ -9,6 +9,6 @@ RUN cargo build --release
 
 FROM scratch
 COPY --from=builder /builder/target/release/meishu .
-COPY --from=builder /builder/resources .
+COPY --from=builder /builder/resources ./resources
 
 CMD ["/meishu"]
