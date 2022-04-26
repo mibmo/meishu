@@ -4,7 +4,7 @@ WORKDIR /builder
 RUN apk add musl-dev npm
 
 ADD . .
-RUN npx tailwindcss -c tailwind.config.js -i tailwind.css -o resources/style.css
+RUN npx tailwindcss -m -c tailwind.config.js -i tailwind.css -o resources/style.css
 RUN cargo build --release
 
 FROM scratch
